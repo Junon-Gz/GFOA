@@ -7,6 +7,7 @@ from selenium import webdriver
 #设置日志输出
 import sys,os
 
+
 code_path = os.getcwd()
 # path = os.path
 # disk = str(path).strip("<module 'ntpath' from ")[:2]

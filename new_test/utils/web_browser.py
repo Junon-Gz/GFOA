@@ -5,7 +5,7 @@ import time
 from selenium.webdriver.common.by import By
 #TODO:用Service代替option
 from selenium.webdriver.chrome.service import Service as ChromeService
-
+from utils.log_record import logger
 class specialBrowser:
     def __init__(self,chromedriverPath="",chromepath="",headless=False):
 
@@ -31,7 +31,7 @@ class specialBrowser:
         try:
             self.driver.get(url)
         except Exception as e:
-            print("访问链接失败")
+            logger.info("访问链接失败")
     
     def find_ele(self,xpath:str,retry:int,way = By.XPATH):
         for i in range(retry):
@@ -51,7 +51,7 @@ class specialBrowser:
         try:
             self.driver.find_element(by=By.XPATH,value=xpath).click()
         except Exception as e:
-            print("点击失败")
+            logger.info("点击失败")
 
     def input_text(self,xpath:str,text:str):
         #对xpath元素输入文本
@@ -60,7 +60,7 @@ class specialBrowser:
             ele.clear()
             ele.send_keys(text)
         except Exception as e:
-            print("输入失败")
+            logger.info("输入失败")
     
     def get_text(self,xpath:str,retry):
         for i in range(retry):
@@ -70,7 +70,7 @@ class specialBrowser:
                 ele = self.driver.find_element(by=By.XPATH,value=xpath)
                 return ele.text
             except Exception as e:
-                print("获取失败")
+                logger.info("获取失败")
             time.sleep(0.5)
         else:
             return ""
@@ -84,7 +84,7 @@ class specialBrowser:
                 iframe_element = self.driver.find_element(by=By.XPATH,value=xpath)
                 self.driver.switch_to.frame(iframe_element)
         except Exception as e:
-            print("切换iframe失败")
+            logger.info("切换iframe失败")
 
     def get_xpath_base64(self,xpath:str):
         #截取xpath元素的图片为base64
@@ -99,7 +99,7 @@ class specialBrowser:
         try:
             self.driver.get_screenshot_as_file(path)
         except Exception as e:
-            print("截屏失败")
+            logger.info("截屏失败")
         
     def get_cookie(self,name:str=''):
         try:
@@ -108,7 +108,7 @@ class specialBrowser:
             else:
                 cookie = self.driver.get_cookie(name)
         except Exception as e:
-            print(f"获取cooike失败{e}")
+            logger.info(f"获取cooike失败{e}")
         finally:
             return cookie
 
@@ -117,7 +117,7 @@ class specialBrowser:
         try:
             self.driver.quit()
         except Exception as e:
-            print("关闭浏览器失败")
+            logger.info("关闭浏览器失败")
 
 if __name__ == "__main__":
     driver_path = r"D:\工作\流程易\机器人V8.4.2\release\Python\python3_lib\chromedriver.exe"
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     a = specialBrowser(chromedriverPath=driver_path,chromepath=chr_path)
     a.get_url("https://www.baidu.com")
     b = a.get_text("(//span[@class='title-content-title'])[1]",retry=5)
-    print(b)
+    logger.info(b)
     a.close()
     time.sleep(2)
 

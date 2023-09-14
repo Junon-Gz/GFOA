@@ -1,4 +1,5 @@
 import sqlite3,time
+from utils.log_record import logger
 def op_db(sql):
     '''
     sql:sql字符串
@@ -6,14 +7,14 @@ def op_db(sql):
     try:
         conn = sqlite3.connect('mydatabase.db')
         cur = conn.cursor()
-        print(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}({time.time()})执行sql:{sql}')
+        logger.info(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}({time.time()})执行sql:{sql}')
         cur.execute(sql)
         if 'select' in sql.lower():
             res = [x for x in cur.fetchall()]
         else:
             res = True
     except Exception as e:
-        print(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}({time.time()}){sql}执行异常：{e}')
+        logger.info(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}({time.time()}){sql}执行异常：{e}')
         if 'select' in sql.lower():
             res = []
         else:
@@ -23,7 +24,7 @@ def op_db(sql):
         conn.commit()
         conn.close()
         if 'select' not in sql.lower():
-            print(f"执行结果:{res}")
+            logger.info(f"执行结果:{res}")
         return res
 
 def create_table():

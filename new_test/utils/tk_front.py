@@ -3,30 +3,31 @@ import tkinter
 import time,math
 import json
 from socket import socket,AF_INET,SOCK_STREAM
+from utils.log_record import logger
 yyb_dict = {"广州天河路营业部":"301","广州黄埔大道营业部":"302","广州环市东路营业部":"303","广州花城大道营业部":"304","广州科韵路营业部":"305","广州中山三路中华广场营业部":"306","广州从化河滨南路营业部":"309","广州增城荔星大道营业部":"310","广州康王中路营业部":"311","广州黄埔东路营业部":"312","广州花都紫薇路营业部":"313","广州锦御一街营业部":"316","广州广州大道南营业部":"317","广州临江大道营业部":"318","广州农林下路营业部":"320","广州昌岗中路营业部":"367","广州江湾营业部":"369","广州洛溪新城营业部":"371","广州番禺环城东路营业部":"372","广州万博二路营业部":"373","广州宸悦路营业部":"378","广州黄埔大道中金融城营业部":"388","全部":"1"}
 com_dic = {"广州花城大道美林基业大厦营业部":"308","广州寺右新马路营业部":"315","广州分公司":"7001","北京分公司":"7002","上海分公司":"7003","深圳分公司":"7004","东莞分公司":"7005","粤东分公司":"7006","佛山分公司":"7007","粤西分公司":"7010","江苏分公司":"7013","山东分公司":"7014","浙江分公司":"7015","河北分公司":"7016","湖北分公司":"7018","成都分公司":"7020","西安分公司":"7021","福建分公司":"7023","珠海分公司":"7025","海南分公司":"7027","长春分公司":"7028","辽宁分公司":"7029","全部":"1"}
 step_dic = {"一审":"1","二审":"2","电话回访":"3","回访录音审核":"4","全部":"11"}
 
 class selection:
-    global cuncu, vartext
+
     
     def __init__(self,anjian,box_Vars):
         self.anjian = anjian
         self.box_Vars = box_Vars
 
 
-    def start(self,port):
-        print(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}开启筛选')
+    def start(self,port,vartext):
+        #开始抢单按钮触发函数
+        logger.info(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}开启筛选')
         if len(cuncu) == 0:
             pass
         else:
-            print(f"选择了{cuncu}")
+            logger.info(f"选择了{cuncu}")
             choose_yyb = [key for x in cuncu['yyb_dict'] for key,value in yyb_dict.items() if x == int(value)]
             choose_com = [key for x in cuncu['com_dic'] for key,value in com_dic.items() if x == int(value)]
             choose_step = [key for x in cuncu['step_dic'] for key,value in step_dic.items() if x == int(value)]
-            print(f"选择营业部：{','.join(choose_yyb)}\n选择分公司：{','.join(choose_com)}\n选择审核类型：{','.join(choose_step)}")
-            vartext.set(str(f"选择营业部：{','.join(choose_yyb)}\n选择分公司：{','.join(choose_com)}\n选择审核类型：{','.join(choose_step)}"))
-
+            logger.info(f"选择营业部：{','.join(choose_yyb)}\n选择分公司：{','.join(choose_com)}\n选择审核类型：{','.join(choose_step)}")
+            vartext.set(f"选择营业部：{','.join(choose_yyb)}\n选择分公司：{','.join(choose_com)}\n选择审核类型：{','.join(choose_step)}")
         #判断全选
         if 1 in cuncu['yyb_dict']:
             cuncu['yyb_dict'] = [value for value in yyb_dict.values() if value != '1']
@@ -47,13 +48,13 @@ class selection:
         self.send_msg(conn,"开始抢单"+json.dumps(cuncu))
 
     def stop(self,port):
-        global vartext
-        vartext.set('')
+        #暂停抢单按钮触发函数
         conn = self.con_server('127.0.0.1',int(port))
         self.send_msg(conn,"暂停抢单")
-        print(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}关闭筛选')
+        logger.info(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}关闭筛选')
 
     def commit(self):
+        #确认选择按钮触发函数
         global cuncu
         key = list(self.box_Vars.keys())[0]
         temp = []
@@ -63,7 +64,7 @@ class selection:
                 if checked:
                     temp.append(checked)
         cuncu[key] = temp
-        print(f"提交后cuncu{cuncu}")
+        logger.info(f"提交后cuncu{cuncu}")
 
     def con_server(self,ip:str,port:int):
         try:
@@ -71,7 +72,7 @@ class selection:
             sock.connect((ip,port))
         except Exception as e:
             sock = None
-            print(f"连接服务端异常:{e}")
+            logger.info(f"连接服务端异常:{e}")
         finally:
             return sock
     
@@ -79,9 +80,9 @@ class selection:
         try:
             sock.sendall(msg.encode("utf8"))
             data = sock.recv(1024)
-            print(f"收到消息{data.decode('utf8')}")
+            logger.info(f"前端收到消息{data.decode('utf8')}")
         except Exception as e:
-            print(f"消息异常:{e}")
+            logger.info(f"前端消息异常:{e}")
 
 
 def fram(dic,master,boxkey):
@@ -119,10 +120,9 @@ def fram(dic,master,boxkey):
     button2 . grid(row=x+3, columnspan=y+3)
 
 
-def buju(mas,port):
-    global cuncu, vartext
+def buju(mas,port,vartext:tkinter.StringVar):
+    global cuncu
     cuncu = {'yyb_dict': [], 'com_dic': [], 'step_dic': []}
-    vartext = tkinter.StringVar()
     entry1 = tkinter.Label(mas, width=120, height=3, bg='white', anchor='se', textvariable=vartext)
     entry1.grid(row=0, columnspan=5)
     frame1 = Frame (mas, relief=RAISED, borderwidth=2)
@@ -134,7 +134,7 @@ def buju(mas,port):
     frame3 = Frame (mas, relief=RAISED, borderwidth=2)
     frame3 . grid(row=3, columnspan=5)
     fram(step_dic,frame3,'step_dic')
-    button1=tkinter.Button(mas,text=' 开启筛选 ',width=7,command=lambda : selection('','').start(port))
+    button1=tkinter.Button(mas,text=' 开启筛选 ',width=7,command=lambda : selection('','').start(port,vartext))
     button1 . grid(row=4, columnspan=5)
     button1=tkinter.Button(mas,text=' 关闭筛选 ',width=7,command=lambda : selection('','').stop(port))
     button1 . grid(row=5, columnspan=5)

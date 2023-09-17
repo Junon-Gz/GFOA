@@ -7,17 +7,37 @@ import tkinter
 
 from utils import tk_front
 from utils.log_record import logger
+import psutil
 
-
-def taskkill(port):
-    # 杀死原有的进程
-    for i in [port]:
-        with os.popen('netstat -aon|findstr "{}"|findstr LISTENING'.format(i)) as p:
-            lines = p.read().split("\n")
-            for line in lines:
-                if "LISTENING" in line:
-                    pid = line[line.index("LISTENING") + 9:].strip()
-                    os.system("taskkill -pid {} -f".format(pid))
+def check_port(ports:list[int]) ->int:
+    # 检查端口是否被占用
+    sock = socket(AF_INET, SOCK_STREAM)
+    for port in ports:
+        result = sock.connect_ex(('127.0.0.1', port))
+        if result == 0:
+            # 端口被占用，查找占用该端口的进程并终止它
+            for conn in psutil.net_connections(kind='inet'):
+                if conn.laddr.port == port:
+                    proc = psutil.Process(conn.pid)
+                    #获取占用端口的pid的进程名称
+                    process_name = proc.name()
+                    logger.info(f"Port {port} is already in use by process {process_name} PID {conn.pid}. ")
+                    if 'GFOA' in  process_name:
+                        logger.info("Killing the process...")
+                        try:
+                            proc.terminate()
+                            proc.wait()
+                            logger.info(f"Process with PID {conn.pid} terminated.")
+                            logger.info(f"use Port {port}")
+                            return port
+                        except psutil.NoSuchProcess:
+                            logger.info(f"Process with PID {conn.pid} does not exist.")
+                    else:
+                        break
+        else:
+            logger.info(f"Port {port} is available.")
+            logger.info(f"use Port {port}")
+            return port
 
 
 def net_is_used(port, ip='127.0.0.1'):
@@ -49,10 +69,9 @@ def run_backend(port):
 
 def on_closing():
     logger.info("进程池结束")
-    # p1.terminate()
+    p1.terminate()
     p2.terminate()
-    p3.terminate()
-    p4.terminate()
+    # p3.terminate()
     # 关闭进程池
     # executor.shutdown()
     # 退出 tkinter 程序
@@ -62,7 +81,7 @@ def on_closing():
 ######################backend######################
 import json
 
-def echo_handler(address,client_sock:socket,flag,vartext:tkinter.StringVar,share_list,headers,port):
+def echo_handler(address,client_sock:socket,vartext:tkinter.StringVar,share_list,flag,headers,port):
     #处理客户端连接
     logger.info('Got connection from {}'.format(address))
     try:
@@ -73,19 +92,26 @@ def echo_handler(address,client_sock:socket,flag,vartext:tkinter.StringVar,share
             client_sock.sendall(resend.encode('utf8'))
             data = json.loads(cont.replace("开始抢单",""))
             share_list.append(data)
+            GFOA_OP.check(data['yyb_dict'],data['com_dic'],data['step_dic'],headers,port,flag)
             logger.info(f"开始抢单数据{data}")
-            GFOA_OP.check(data['yyb_dict'],data['com_dic'],data['step_dic'],headers,flag,port)
             flag.value = True
         elif "暂停抢单" in cont:
             flag.value = False
             resend = '暂停抢单成功'
             client_sock.sendall(resend.encode('utf8'))
+            share_list.pop(0)
             vartext.set('')
         elif '登录失效' in cont:
             flag.value = False
             vartext.set(cont)
+            share_list.pop(0)
             resend = f'暂停抢单成功,{cont}'
             client_sock.sendall(resend.encode('utf8'))
+        elif '筛选订单成功' in cont:
+            GFOA_OP.check_snatch(headers,port,flag)
+            resend = f'执行抢单成功'
+            client_sock.sendall(resend.encode('utf8'))
+
     except Exception as e:
         logger.info(f"后端socket消息异常:{e}")
     finally:
@@ -93,14 +119,17 @@ def echo_handler(address,client_sock:socket,flag,vartext:tkinter.StringVar,share
 
 
 def echo_server(address,port,flag,share_list,vartext,headers,backlog=5):
-    #启动socket服务端
-    sock = socket(AF_INET,SOCK_STREAM)
-    sock.bind((address,port))
-    sock.listen(backlog)
-    while True:
-        client_sock,client_addr = sock.accept()
-        logger.info("接收到监听")
-        echo_handler(client_addr,client_sock,flag,vartext,share_list,headers,port)
+    try:
+        #启动socket服务端
+        sock = socket(AF_INET,SOCK_STREAM)
+        sock.bind((address,port))
+        sock.listen(backlog)
+        while True:
+            client_sock,client_addr = sock.accept()
+            logger.info("接收到监听")
+            echo_handler(client_addr,client_sock,vartext,share_list,flag,headers,port)
+    except Exception as e:
+        logger.info(f"服务端启动异常:{e}")
 
 def test(flag):
     '''
@@ -115,25 +144,28 @@ def test(flag):
                 logger.info(i)
                 time.sleep(2)
 
-def check(flag,share_list,headers,port):
+def check(check_flag,snatch_flag,share_list,headers,port):
     while True:
-        if flag.value:
+        if check_flag.value:
             data = share_list[0]
-            GFOA_OP.check(data['yyb_dict'],data['com_dic'],data['step_dic'],headers,port,flag)
+            GFOA_OP.check(data['yyb_dict'],data['com_dic'],data['step_dic'],headers,port,snatch_flag)
 
-def snatch(flag,headers,port,share_list):
-    if len(share_list) >0:
-        data = share_list[0]
-        GFOA_OP.check(data['yyb_dict'],data['com_dic'],data['step_dic'],headers,port,flag)
+def snatch(snatch_flag,headers,port):
+    #单独抢单调用常驻函数
     while True:
-        if flag.value:
-            #单独抢
-            GFOA_OP.snatch(headers,port,flag)
-            #查询控制抢
-            # for i in range(100):
-            #     GFOA_OP.snatch(headers,port,flag)
-            # else:
-            #     flag.value = False
+        if snatch_flag.value:
+            GFOA_OP.snatch(headers,port,snatch_flag)
+
+
+def check_snatch(snatch_flag,headers,port):
+    #一边查一点抢调用常驻函数
+    while True:
+        if snatch_flag.value:
+            GFOA_OP.check_snatch(headers,port,snatch_flag)
+
+def socket_snatch(snatch_flag,headers,port):
+    for i in range(100):
+        GFOA_OP.check_snatch(headers,port,snatch_flag)
 
 
 if __name__ == "__main__":
@@ -141,31 +173,30 @@ if __name__ == "__main__":
     from threading import Thread
     from multiprocessing import freeze_support
     freeze_support()
-    #查询配置
+    #共享(请求配置)列表
     share_list = multiprocessing.Manager().list()
     #启停控制
     check_flag = multiprocessing.Value('b',False)
     snatch_flag = multiprocessing.Value('b',False)
-    port = 20000
-    taskkill(port)
+    ports = [i for i in range(18999,19000)]#常用端口号18999
+    # BUG: 概率出现:1.原进程不能被kill会导致多端口占用
+    port = check_port(ports)
+
     header = GFOA_OP.get_headers()
 
     #查+抢
-    # p2 = multiprocessing.Process(target=check,args=[check_flag,share_list,header,port])
-    # p4 = multiprocessing.Process(target=check,args=[check_flag,share_list,header,port])
-    # p3 = multiprocessing.Process(target=snatch,args=[snatch_flag,header,port,share_list])
-    # p2.start()
+    p1 = multiprocessing.Process(target=check,args=[check_flag,snatch_flag,share_list,header,port])
+    p2 = multiprocessing.Process(target=check,args=[check_flag,snatch_flag,share_list,header,port])
+    # p3 = multiprocessing.Process(target=check_snatch,args=[snatch_flag,header,port])
+    p1.start()
+    p2.start()
     # p3.start()
-    # p4.start()
 
     #单独抢
-    p2 = multiprocessing.Process(target=snatch,args=[snatch_flag,header,port,share_list])
-    p4 = multiprocessing.Process(target=snatch,args=[snatch_flag,header,port,share_list])
-    p3 = multiprocessing.Process(target=snatch,args=[snatch_flag,header,port,share_list])
-    
-    p2.start()
-    p3.start()
-    p4.start()
+    # p1 = multiprocessing.Process(target=snatch,args=[snatch_flag,header,port])
+    # p2 = multiprocessing.Process(target=snatch,args=[snatch_flag,header,port])
+    # p1.start()
+    # p2.start()
 
     # with ThreadPoolExecutor(max_workers=2) as executor:
     #     app1 = executor.submit(echo_server,[('127.0.0.1',port),share_val])
@@ -174,9 +205,9 @@ if __name__ == "__main__":
     root=tkinter.Tk()
     vartext = tkinter.StringVar()
     #查+抢
-    # t1 = Thread(target=echo_server,args=['127.0.0.1',port,check_flag,share_list,vartext,header])
+    t1 = Thread(target=echo_server,args=['127.0.0.1',port,check_flag,share_list,vartext,header])
     #单独抢
-    t1 = Thread(target=echo_server,args=['127.0.0.1',port,snatch_flag,share_list,vartext,header])
+    # t1 = Thread(target=echo_server,args=['127.0.0.1',port,snatch_flag,share_list,vartext,header])
     t1.start()
     root.title('GFOA')
     root.resizable(0,0)

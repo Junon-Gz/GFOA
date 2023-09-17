@@ -85,7 +85,7 @@ def get_headers():
     finally:
         return headers
 
-def check(branch,company,step,headers,port,flag):
+def check(branch,company,step,headers,port,snatch_flag):
     try:
         #筛选所有分公司营业部订单
         url = f"http://online.gf.com.cn:8070/api/order/list?branchs={'%7C'.join(branch)}&company={'%7C'.join(company)}&enableNotification=0&orderType=1&step={'%7C'.join(step)}"
@@ -97,6 +97,11 @@ def check(branch,company,step,headers,port,flag):
         if response.status_code == 200:
             cont = json.loads(response.text)
             if cont['msg'] == '筛选订单成功！':
+                logger.info(f'({time.time()})')
+                so = con_server('127.0.0.1',port)
+                send_msg(so,'筛选订单成功')
+                #控制开始抢
+                snatch_flag.value = True
                 logger.info(f'({time.time()}){cont["msg"]},共{len(cont["data"])}单,{cont["data"]}')
             #     # order_num = len(cont["data"])
             #     # if order_num > 0:
@@ -118,7 +123,7 @@ def check(branch,company,step,headers,port,flag):
         if "请求异常" in str(e):
             so = con_server('127.0.0.1',port)
             send_msg(so,'登录失效，请重启软件进行登录')
-            flag.value = False
+            
 
 
 def snatch(headers,port,flag):
@@ -135,14 +140,46 @@ def snatch(headers,port,flag):
             cont = json.loads(response.text)
             if cont['msg'] == '抢单成功！':
                 logger.info(f'({time.time()}){cont["msg"]}{cont["data"]}')
-                #单独抢时注释
-                # flag.value = False
+                flag.value = False
             else:
                 if int(start_time[17:19]) % 30 == 0:#每20秒打印一次(以便抽查频率)，同时控制日志大小
                     if cont["msg"] == '操作太过频繁':
                         logger.info(f'({time.time()})')
                     else:
                         logger.info(f'({time.time()}){cont["msg"]}')
+        else:
+            logger.info(f'({time.time()})请求异常：{response.status_code}')
+            db_sql.clear_cookie()
+            raise Exception(f'({time.time()})请求异常：{response.status_code}')
+    except Exception as e:
+        logger.info(f"({time.time()})抢单请求异常:{str(e)}")
+        if "请求异常" in str(e):
+            so = con_server('127.0.0.1',port)
+            send_msg(so,'登录失效，请重启软件进行登录')
+            flag.value = False
+
+def check_snatch(headers,port,flag):
+    try:
+        #抢单
+        # headers['User-Agent'] = faker.user_agent()
+        # start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        url = "http://online.gf.com.cn:8070/api/order/snatch"
+        payload = "{}"
+        #响应示例
+        #{"code":0,"data":{"orderType":1,"orderId":"632ae40c656ece6e8e308cdc","customerId":null,"branchName":"广州花都紫薇路营业部","step":4.0,"remainTime":1799,"customerName":"黄清宁","expiredTime":"2022-09-23 08:30:00","branchNo":"313"},"msg":"抢单成功！"}
+        response = requests.request("POST", url, headers=headers, data=payload)
+        if response.status_code == 200:
+            cont = json.loads(response.text)
+            logger.info(f'({time.time()}){cont["msg"]}')
+            if cont['msg'] == '抢单成功！' or cont['msg'] == '当前没有满足条件的订单可以抢！':
+                logger.info(f'({time.time()}){cont["msg"]}{cont["data"]}')
+                # flag.value = False
+            # else:
+            #     if int(start_time[17:19]) % 30 == 0:#每20秒打印一次(以便抽查频率)，同时控制日志大小
+            #         if cont["msg"] == '操作太过频繁':
+            #             logger.info(f'({time.time()})')
+            #         else:
+            #             logger.info(f'({time.time()}){cont["msg"]}')
         else:
             logger.info(f'({time.time()})请求异常：{response.status_code}')
             db_sql.clear_cookie()

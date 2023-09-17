@@ -62,7 +62,7 @@ def on_closing():
 ######################backend######################
 import json
 
-def echo_handler(address,client_sock:socket,flag,vartext:tkinter.StringVar,share_list):
+def echo_handler(address,client_sock:socket,flag,vartext:tkinter.StringVar,share_list,headers,port):
     #处理客户端连接
     logger.info('Got connection from {}'.format(address))
     try:
@@ -74,7 +74,7 @@ def echo_handler(address,client_sock:socket,flag,vartext:tkinter.StringVar,share
             data = json.loads(cont.replace("开始抢单",""))
             share_list.append(data)
             logger.info(f"开始抢单数据{data}")
-            
+            GFOA_OP.check(data['yyb_dict'],data['com_dic'],data['step_dic'],headers,flag,port)
             flag.value = True
         elif "暂停抢单" in cont:
             flag.value = False
@@ -92,15 +92,15 @@ def echo_handler(address,client_sock:socket,flag,vartext:tkinter.StringVar,share
         client_sock.close()
 
 
-def echo_server(address,flag,share_list,vartext,backlog=5):
+def echo_server(address,port,flag,share_list,vartext,headers,backlog=5):
     #启动socket服务端
     sock = socket(AF_INET,SOCK_STREAM)
-    sock.bind(address)
+    sock.bind((address,port))
     sock.listen(backlog)
     while True:
         client_sock,client_addr = sock.accept()
         logger.info("接收到监听")
-        echo_handler(client_addr,client_sock,flag,vartext,share_list)
+        echo_handler(client_addr,client_sock,flag,vartext,share_list,headers,port)
 
 def test(flag):
     '''
@@ -121,13 +121,19 @@ def check(flag,share_list,headers,port):
             data = share_list[0]
             GFOA_OP.check(data['yyb_dict'],data['com_dic'],data['step_dic'],headers,port,flag)
 
-def snatch(flag,headers,port):
+def snatch(flag,headers,port,share_list):
+    if len(share_list) >0:
+        data = share_list[0]
+        GFOA_OP.check(data['yyb_dict'],data['com_dic'],data['step_dic'],headers,port,flag)
     while True:
         if flag.value:
-            for i in range(100):
-                GFOA_OP.snatch(headers,port,flag)
-            else:
-                flag.value = False
+            #单独抢
+            GFOA_OP.snatch(headers,port,flag)
+            #查询控制抢
+            # for i in range(100):
+            #     GFOA_OP.snatch(headers,port,flag)
+            # else:
+            #     flag.value = False
 
 
 if __name__ == "__main__":
@@ -143,23 +149,38 @@ if __name__ == "__main__":
     port = 20000
     taskkill(port)
     header = GFOA_OP.get_headers()
-    p2 = multiprocessing.Process(target=check,args=[check_flag,share_list,header,port])
-    p4 = multiprocessing.Process(target=check,args=[check_flag,share_list,header,port])
-    p3 = multiprocessing.Process(target=snatch,args=[snatch_flag,header,port])
+
+    #查+抢
+    # p2 = multiprocessing.Process(target=check,args=[check_flag,share_list,header,port])
+    # p4 = multiprocessing.Process(target=check,args=[check_flag,share_list,header,port])
+    # p3 = multiprocessing.Process(target=snatch,args=[snatch_flag,header,port,share_list])
+    # p2.start()
+    # p3.start()
+    # p4.start()
+
+    #单独抢
+    p2 = multiprocessing.Process(target=snatch,args=[snatch_flag,header,port,share_list])
+    p4 = multiprocessing.Process(target=snatch,args=[snatch_flag,header,port,share_list])
+    p3 = multiprocessing.Process(target=snatch,args=[snatch_flag,header,port,share_list])
     
     p2.start()
     p3.start()
     p4.start()
+
     # with ThreadPoolExecutor(max_workers=2) as executor:
     #     app1 = executor.submit(echo_server,[('127.0.0.1',port),share_val])
     #     app2 = executor.submit(test,share_val)
     #     app3 = executor.submit(test,share_val)
     root=tkinter.Tk()
     vartext = tkinter.StringVar()
-    t1 = Thread(target=echo_server,args=[('127.0.0.1',port),check_flag,share_list,vartext])
+    #查+抢
+    # t1 = Thread(target=echo_server,args=['127.0.0.1',port,check_flag,share_list,vartext,header])
+    #单独抢
+    t1 = Thread(target=echo_server,args=['127.0.0.1',port,snatch_flag,share_list,vartext,header])
     t1.start()
     root.title('GFOA')
     root.resizable(0,0)
     tk_front.buju(root,port,vartext)
     root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()
+

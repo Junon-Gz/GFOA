@@ -3,6 +3,7 @@ from utils import db_sql
 import time,json,requests
 from socket import socket,AF_INET,SOCK_STREAM
 from utils.log_record import logger
+import os
 def con_server(ip:str,port:int):
     try:
         sock = socket(AF_INET,SOCK_STREAM)
@@ -27,8 +28,11 @@ def get_cookie():
     '''
     try:
         db_sql.create_table()
-        driver_path = r"D:\工作\流程易\机器人V8.5.1\release\Python\python3_lib\chromedriver.exe"
-        chrome_path = r"D:\工作\流程易\机器人V8.5.1\release\Python\python3_lib\GoogleChrome\Chrome\chrome.exe"
+        code_path = os.getcwd()
+        chrome_path = rf'{code_path}\GoogleChrome\Chrome\chrome.exe'
+        driver_path = rf'{code_path}\GoogleChrome\Chrome\chromedriver.exe'
+        # driver_path = r"D:\工作\流程易\机器人V8.5.1\release\Python\python3_lib\chromedriver.exe"
+        # chrome_path = r"D:\工作\流程易\机器人V8.5.1\release\Python\python3_lib\GoogleChrome\Chrome\chrome.exe"
         browser = specialBrowser(chromedriverPath=driver_path,chromepath=chrome_path)
         browser.get_url("http://online.gf.com.cn:8070/login")
         # browser.get("www.baidu.com")
@@ -93,24 +97,24 @@ def check(branch,company,step,headers,port,flag):
         if response.status_code == 200:
             cont = json.loads(response.text)
             if cont['msg'] == '筛选订单成功！':
-                logger.info(f'{start_time}({time.time()}){cont["msg"]},共{len(cont["data"])}单,{cont["data"]}')
-                # order_num = len(cont["data"])
-                # if order_num > 0:
-                #     order = []#初始化订单列表
-                #     for i in range(order_num):#根据筛选订单数进行循环
-                #         have_order = snatch_order()#抢单
-                #         if have_order:#抢到单
-                #             order.append(have_order)#将订单内容添加到订单列表
-                #     logger.info(f'{start_time}抢到{len(order)}单：{order}')
+                logger.info(f'({time.time()}){cont["msg"]},共{len(cont["data"])}单,{cont["data"]}')
+            #     # order_num = len(cont["data"])
+            #     # if order_num > 0:
+            #     #     order = []#初始化订单列表
+            #     #     for i in range(order_num):#根据筛选订单数进行循环
+            #     #         have_order = snatch_order()#抢单
+            #     #         if have_order:#抢到单
+            #     #             order.append(have_order)#将订单内容添加到订单列表
+            #     #     logger.info(f'{start_time}抢到{len(order)}单：{order}')
             else:
-                if int(start_time[17:19]) % 20 == 0:#每20秒打印一次(以便抽查频率)
-                    logger.info(f'{start_time}({time.time()}){cont["msg"]}')
+                if int(start_time[17:19]) % 30 == 0:#每20秒打印一次(以便抽查频率)
+                    logger.info(f'({time.time()}){cont["msg"]}')
         else:
-            logger.info(f'{start_time}请求异常：{response.status_code}')
+            logger.info(f'请求异常：{response.status_code}')
             db_sql.clear_cookie()
-            raise Exception(f'{start_time}请求异常：{response.status_code}')
+            raise Exception(f'请求异常：{response.status_code}')
     except Exception as e:
-        logger.info(f"{start_time}筛选请求异常:{str(e)}")
+        logger.info(f"筛选请求异常:{str(e)}")
         if "请求异常" in str(e):
             so = con_server('127.0.0.1',port)
             send_msg(so,'登录失效，请重启软件进行登录')
@@ -130,14 +134,15 @@ def snatch(headers,port,flag):
         if response.status_code == 200:
             cont = json.loads(response.text)
             if cont['msg'] == '抢单成功！':
-                logger.info(f'{start_time}({time.time()}){cont["msg"]}{cont["data"]}')
-                flag.value = False
-            # else:
-            #     if int(start_time[17:19]) % 20 == 0:#每20秒打印一次(以便抽查频率)，同时控制日志大小
-            elif cont["msg"] == '操作太过频繁':
-                logger.info(f'{start_time}({time.time()})')
+                logger.info(f'({time.time()}){cont["msg"]}{cont["data"]}')
+                #单独抢时注释
+                # flag.value = False
             else:
-                logger.info(f'{start_time}({time.time()}){cont["msg"]}')
+                if int(start_time[17:19]) % 30 == 0:#每20秒打印一次(以便抽查频率)，同时控制日志大小
+                    if cont["msg"] == '操作太过频繁':
+                        logger.info(f'({time.time()})')
+                    else:
+                        logger.info(f'({time.time()}){cont["msg"]}')
         else:
             logger.info(f'({time.time()})请求异常：{response.status_code}')
             db_sql.clear_cookie()

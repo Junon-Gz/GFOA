@@ -7,14 +7,14 @@ def op_db(sql):
     try:
         conn = sqlite3.connect('mydatabase.db')
         cur = conn.cursor()
-        logger.info(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}({time.time()})执行sql:{sql}')
+        logger.info(f'({time.time()})执行sql:{sql}')
         cur.execute(sql)
         if 'select' in sql.lower():
             res = [x for x in cur.fetchall()]
         else:
             res = True
     except Exception as e:
-        logger.info(f'{time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}({time.time()}){sql}执行异常：{e}')
+        logger.info(f'({time.time()}){sql}执行异常：{e}')
         if 'select' in sql.lower():
             res = []
         else:

@@ -85,10 +85,10 @@ def get_headers():
     finally:
         return headers
 
-def check(branch,company,step,headers,port,snatch_flag):
+def check(order_type,branch,company,step,headers,port,snatch_flag):
     try:
         #筛选所有分公司营业部订单
-        url = f"http://online.gf.com.cn:8070/api/order/list?branchs={'%7C'.join(branch)}&company={'%7C'.join(company)}&enableNotification=0&orderType=1&step={'%7C'.join(step)}"
+        url = f"http://online.gf.com.cn:8070/api/order/list?branchs={'%7C'.join(branch)}&company={'%7C'.join(company)}&enableNotification=0&orderType={'%7C'.join(order_type)}&step={'%7C'.join(step)}"
         payload={}
         response = requests.request("GET", url, headers=headers, data=payload)
         #响应示例
@@ -123,7 +123,7 @@ def check(branch,company,step,headers,port,snatch_flag):
         if "请求异常" in str(e):
             so = con_server('127.0.0.1',port)
             send_msg(so,'登录失效，请重启软件进行登录')
-            
+            snatch_flag.value = False
 
 
 def snatch(headers,port,flag):

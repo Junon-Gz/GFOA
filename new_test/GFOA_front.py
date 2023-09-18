@@ -87,14 +87,10 @@ def echo_handler(address,client_sock:socket,vartext:tkinter.StringVar,share_list
     try:
         msg = client_sock.recv(8192)
         cont = msg.decode('utf8')
-        if "开始抢单" in cont:
-            resend = '开始抢单成功'
+        if "筛选订单成功" in cont:
+            GFOA_OP.check_snatch(headers,port,flag)
+            resend = f'执行抢单成功'
             client_sock.sendall(resend.encode('utf8'))
-            data = json.loads(cont.replace("开始抢单",""))
-            share_list.append(data)
-            GFOA_OP.check(data['yyb_dict'],data['com_dic'],data['step_dic'],headers,port,flag)
-            logger.info(f"开始抢单数据{data}")
-            flag.value = True
         elif "暂停抢单" in cont:
             flag.value = False
             resend = '暂停抢单成功'
@@ -102,15 +98,20 @@ def echo_handler(address,client_sock:socket,vartext:tkinter.StringVar,share_list
             share_list.pop(0)
             vartext.set('')
         elif '登录失效' in cont:
+            # BUG:登录失效未能更新显示
             flag.value = False
             vartext.set(cont)
             share_list.pop(0)
             resend = f'暂停抢单成功,{cont}'
             client_sock.sendall(resend.encode('utf8'))
-        elif '筛选订单成功' in cont:
-            GFOA_OP.check_snatch(headers,port,flag)
-            resend = f'执行抢单成功'
+        elif '开始抢单' in cont:
+            resend = '开始抢单成功'
             client_sock.sendall(resend.encode('utf8'))
+            data = json.loads(cont.replace("开始抢单",""))
+            share_list.append(data)
+            GFOA_OP.check(data['order_type_dic'],data['yyb_dict'],data['com_dic'],data['step_dic'],headers,port,flag)
+            logger.info(f"开始抢单数据{data}")
+            flag.value = True
 
     except Exception as e:
         logger.info(f"后端socket消息异常:{e}")
@@ -148,7 +149,7 @@ def check(check_flag,snatch_flag,share_list,headers,port):
     while True:
         if check_flag.value:
             data = share_list[0]
-            GFOA_OP.check(data['yyb_dict'],data['com_dic'],data['step_dic'],headers,port,snatch_flag)
+            GFOA_OP.check(data['order_type_dic'],data['yyb_dict'],data['com_dic'],data['step_dic'],headers,port,snatch_flag)
 
 def snatch(snatch_flag,headers,port):
     #单独抢单调用常驻函数
@@ -187,7 +188,7 @@ if __name__ == "__main__":
     #查+抢
     p1 = multiprocessing.Process(target=check,args=[check_flag,snatch_flag,share_list,header,port])
     p2 = multiprocessing.Process(target=check,args=[check_flag,snatch_flag,share_list,header,port])
-    # p3 = multiprocessing.Process(target=check_snatch,args=[snatch_flag,header,port])
+    # # p3 = multiprocessing.Process(target=check_snatch,args=[snatch_flag,header,port])
     p1.start()
     p2.start()
     # p3.start()

@@ -91,17 +91,19 @@ def check(order_type,branch,company,step,headers,port,snatch_flag):
         url = f"http://online.gf.com.cn:8070/api/order/list?branchs={'%7C'.join(branch)}&company={'%7C'.join(company)}&enableNotification=0&orderType={'%7C'.join(order_type)}&step={'%7C'.join(step)}"
         payload={}
         response = requests.request("GET", url, headers=headers, data=payload)
+        if '筛选订单成功' in response.text:
+            print(f"({time.time()})")
+            check_snatch(headers,port,snatch_flag)
         #响应示例
         #{"code":0,"data":[{"orderType":1,"orderId":"632ae40c656ece6e8e308cdc","customerId":null,"branchName":"广州花都紫薇路营业部","step":4.0,"remainTime":119321,"customerName":"黄清宁","expiredTime":"2022-09-23 08:30:00","branchNo":"313"}],"msg":"筛选订单成功！"}
         start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         if response.status_code == 200:
             cont = json.loads(response.text)
             if cont['msg'] == '筛选订单成功！':
-                logger.info(f'({time.time()})')
-                so = con_server('127.0.0.1',port)
-                send_msg(so,'筛选订单成功')
+                # so = con_server('127.0.0.1',port)
+                # send_msg(so,'筛选订单成功')
                 #控制开始抢
-                snatch_flag.value = True
+                # snatch_flag.value = True
                 logger.info(f'({time.time()}){cont["msg"]},共{len(cont["data"])}单,{cont["data"]}')
             #     # order_num = len(cont["data"])
             #     # if order_num > 0:
@@ -130,12 +132,12 @@ def snatch(headers,port,flag):
     try:
         #抢单
         # headers['User-Agent'] = faker.user_agent()
-        start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         url = "http://online.gf.com.cn:8070/api/order/snatch"
         payload = "{}"
         #响应示例
         #{"code":0,"data":{"orderType":1,"orderId":"632ae40c656ece6e8e308cdc","customerId":null,"branchName":"广州花都紫薇路营业部","step":4.0,"remainTime":1799,"customerName":"黄清宁","expiredTime":"2022-09-23 08:30:00","branchNo":"313"},"msg":"抢单成功！"}
         response = requests.request("POST", url, headers=headers, data=payload)
+        start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         if response.status_code == 200:
             cont = json.loads(response.text)
             if cont['msg'] == '抢单成功！':

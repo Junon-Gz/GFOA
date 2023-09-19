@@ -101,7 +101,6 @@ def echo_handler(address,client_sock:socket,vartext:tkinter.StringVar,share_list
             # BUG:登录失效未能更新显示
             flag.value = False
             vartext.set(cont)
-            share_list.pop(0)
             resend = f'暂停抢单成功,{cont}'
             client_sock.sendall(resend.encode('utf8'))
         elif '开始抢单' in cont:
@@ -109,7 +108,8 @@ def echo_handler(address,client_sock:socket,vartext:tkinter.StringVar,share_list
             client_sock.sendall(resend.encode('utf8'))
             data = json.loads(cont.replace("开始抢单",""))
             share_list.append(data)
-            GFOA_OP.check(data['order_type_dic'],data['yyb_dict'],data['com_dic'],data['step_dic'],headers,port,flag)
+            # BUG 失效时死锁(单抢需考虑其他替代方案)
+            # GFOA_OP.check(data['order_type_dic'],data['yyb_dict'],data['com_dic'],data['step_dic'],headers,port,flag)
             logger.info(f"开始抢单数据{data}")
             flag.value = True
 

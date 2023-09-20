@@ -92,7 +92,7 @@ def check(order_type,branch,company,step,headers,port,snatch_flag):
         payload={}
         response = requests.request("GET", url, headers=headers, data=payload)
         if '筛选订单成功' in response.text:
-            print(f"({time.time()})")
+            logger.info(f"({time.time()})")
             check_snatch(headers,port,snatch_flag)
         #响应示例
         #{"code":0,"data":[{"orderType":1,"orderId":"632ae40c656ece6e8e308cdc","customerId":null,"branchName":"广州花都紫薇路营业部","step":4.0,"remainTime":119321,"customerName":"黄清宁","expiredTime":"2022-09-23 08:30:00","branchNo":"313"}],"msg":"筛选订单成功！"}

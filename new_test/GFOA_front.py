@@ -76,6 +76,7 @@ def on_closing():
     # executor.shutdown()
     # 退出 tkinter 程序
     root.destroy()
+    sys.exit()
 
 
 ######################backend######################

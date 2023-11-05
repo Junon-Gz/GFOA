@@ -27,6 +27,7 @@ def get_cookie():
     获取cookies并存入内置数据库
     '''
     try:
+        db_sql.clear_cookie()
         db_sql.create_table()
         code_path = os.getcwd()
         chrome_path = rf'{code_path}\GoogleChrome\Chrome\chrome.exe'
@@ -65,9 +66,9 @@ def get_headers():
     try:
         db_sql.create_table()
         headers = {}
-        select_sql = 'select cookies from cookies where invalid_time = ""'
+        select_sql = 'select * from cookies where invalid_time = ""'
         cookies = db_sql.op_db(select_sql)
-        if len(cookies)>0:
+        if len(cookies)>0 and cookies[0][1][:10] == str(time.strftime('%Y-%m-%d', time.localtime())):
             logger.info(f"从数据库查询到cookie：{cookies}")
             #cookies:[(),()]
             cookie = json.loads(cookies[0][0])
@@ -92,7 +93,7 @@ def check(order_type,branch,company,step,headers,port,snatch_flag):
         payload={}
         response = requests.request("GET", url, headers=headers, data=payload)
         if '筛选订单成功' in response.text:
-            logger.info(f"({time.time()})")
+            logger.info(f"({time.time()})唤醒抢单")
             check_snatch(headers,port,snatch_flag)
         #响应示例
         #{"code":0,"data":[{"orderType":1,"orderId":"632ae40c656ece6e8e308cdc","customerId":null,"branchName":"广州花都紫薇路营业部","step":4.0,"remainTime":119321,"customerName":"黄清宁","expiredTime":"2022-09-23 08:30:00","branchNo":"313"}],"msg":"筛选订单成功！"}
@@ -142,7 +143,7 @@ def snatch(headers,port,flag):
             cont = json.loads(response.text)
             if cont['msg'] == '抢单成功！':
                 logger.info(f'({time.time()}){cont["msg"]}{cont["data"]}')
-                flag.value = False
+                # flag.value = False
             else:
                 if int(start_time[17:19]) % 30 == 0:#每20秒打印一次(以便抽查频率)，同时控制日志大小
                     if cont["msg"] == '操作太过频繁':
@@ -172,7 +173,7 @@ def check_snatch(headers,port,flag):
         response = requests.request("POST", url, headers=headers, data=payload)
         if response.status_code == 200:
             cont = json.loads(response.text)
-            logger.info(f'({time.time()}){cont["msg"]}')
+            logger.info(f'({time.time()})抢单结果:{cont["msg"]}')
             if cont['msg'] == '抢单成功！' or cont['msg'] == '当前没有满足条件的订单可以抢！':
                 logger.info(f'({time.time()}){cont["msg"]}{cont["data"]}')
                 # flag.value = False

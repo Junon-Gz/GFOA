@@ -2,7 +2,7 @@
 import logging
 from logging import handlers
 import os
-
+import time
 
 class Logger(object):
     level_relations = {
@@ -39,4 +39,5 @@ class Logger(object):
         self.logger.addHandler(sh) #把对象加到logger里
         self.logger.addHandler(th)
 
-logger =Logger(os.getcwd()+'/log/front.log',level='debug').logger
+# logger =Logger(os.getcwd()+f'/log/rec_{time.strftime("%Y%m%d", time.localtime())}.log',level='debug').logger
+logger =Logger(os.getcwd()+f'/log/acc_{time.strftime("%Y%m%d", time.localtime())}.log',level='debug').logger
